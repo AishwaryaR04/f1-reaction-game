@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>F1 Start Reaction</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Orbitron', sans-serif;
+}
+
+body {
+  background: #000;
+  color: white;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+body.red-mode {
+  box-shadow: inset 0 0 60px red;
+  border: 6px solid red;
+  transition: 0.3s ease;
+}
+
+.timer {
+  font-size: 60px;
+  margin-bottom: 20px;
+  letter-spacing: 3px;
+  cursor: pointer;
+}
+
+.best {
+  margin-bottom: 30px;
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.lights {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 40px;
+}
+
+.light {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #220000;
+  transition: 0.2s;
+}
+
+.light.on {
+  background: red;
+  box-shadow: 0 0 25px red;
+}
+
+button {
+  padding: 8px 20px;
+  background: #111;
+  color: white;
+  border: 1px solid #333;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+button:hover {
+  background: #222;
+}
+
+
+</style>
+</head>
+<body>
+
+<div class="timer" id="timer">00.000</div>
+<div class="best">Best: <span id="best">--</span></div>
+
+<div class="lights">
+  <div class="light"></div>
+  <div class="light"></div>
+  <div class="light"></div>
+  <div class="light"></div>
+  <div class="light"></div>
+</div>
+
+<button onclick="manualReset()">RESET</button>
+
+<script>
+  const beepSound = new Audio("beep.mp3");
+const goSound = new Audio("go.mp3");
+
+const lights = document.querySelectorAll(".light");
+const timerDisplay = document.getElementById("timer");
+const bestDisplay = document.getElementById("best");
+
+let state = "idle";
+let startTime;
+let timerInterval;
+let countdownInterval;
+let bestTime = null;
+let currentLight = 0;
+
+document.body.addEventListener("click", function(e) {
+  if (e.target.tagName === "BUTTON") return; // prevent body click when pressing reset
+  handleClick();
+});
+
+function handleClick() {
+
+  if (state === "idle") {
+    startSequence();
+  }
+
+  else if (state === "countdown") {
+    falseStart();
+  }
+
+  else if (state === "running") {
+    stopTimer();
+  }
+}
+
+function startSequence() {
+  
+  resetVisuals();
+  state = "countdown";
+  currentLight = 0;
+document.body.classList.add("red-mode");
+
+  countdownInterval = setInterval(() => {
+    if (currentLight < lights.length) {
+      lights[currentLight].classList.add("on");
+beepSound.currentTime = 0;
+beepSound.play().catch(() => {});
+
+
+      currentLight++;
+    } else {
+      clearInterval(countdownInterval);
+
+      let randomDelay = Math.random() * 3000 + 2000;
+
+      setTimeout(() => {
+  lights.forEach(light => light.classList.remove("on"));
+  document.body.classList.remove("red-mode");
+
+  goSound.currentTime = 0;
+  goSound.play().catch(() => {});
+
+  startTimer();
+}, randomDelay);
+
+
+    }
+  }, 900);
+}
+
+function startTimer() {
+  state = "running";
+  startTime = performance.now();
+
+  timerInterval = setInterval(() => {
+    let now = performance.now();
+    let time = (now - startTime) / 1000;
+    timerDisplay.textContent = time.toFixed(3);
+  }, 10);
+}
+
+function stopTimer() {
+  clearInterval(timerInterval);
+  state = "idle";
+
+  let finalTime = parseFloat(timerDisplay.textContent);
+
+  if (!bestTime || finalTime < bestTime) {
+    bestTime = finalTime;
+    bestDisplay.textContent = bestTime.toFixed(3);
+  }
+}
+
+function falseStart() {
+  clearInterval(countdownInterval);
+  state = "idle";
+  timerDisplay.textContent = "FALSE START";
+  resetLights();
+  document.body.classList.remove("red-mode");
+
+}
+
+function manualReset() {
+  clearInterval(timerInterval);
+  clearInterval(countdownInterval);
+  state = "idle";
+  document.body.classList.remove("red-mode");
+
+  resetVisuals();
+}
+
+function resetLights() {
+  lights.forEach(light => light.classList.remove("on"));
+}
+
+function resetVisuals() {
+  timerDisplay.textContent = "00.000";
+  resetLights();
+}
+</script>
+
+</body>
+</html>
