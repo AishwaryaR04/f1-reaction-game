@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Leaderboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+<style>
+body{
+  background:black;
+  color:white;
+  font-family:'Orbitron',sans-serif;
+  text-align:center;
+  padding:40px;
+}
+table{
+  margin:auto;
+  border-collapse:collapse;
+}
+td,th{
+  padding:10px 20px;
+  border-bottom:1px solid #333;
+}
+button{
+  margin-top:20px;
+  padding:8px 20px;
+}
+</style>
+</head>
+<body>
+
+<h1>🏁 Leaderboard</h1>
+
+<table id="board">
+<tr><th>Rank</th><th>Name</th><th>Time (s)</th></tr>
+</table>
+
+<button onclick="goBack()">Back</button>
+<button onclick="clearLeaderboard()" style="background:rgb(255, 255, 255);">
+Clear Leaderboard
+</button>
+<script>
+let scores = JSON.parse(localStorage.getItem("f1Scores")) || [];
+let table = document.getElementById("board");
+
+scores.forEach((score,index)=>{
+  let row = table.insertRow();
+  row.insertCell(0).innerText = index+1;
+  row.insertCell(1).innerText = score.name;
+  row.insertCell(2).innerText = score.time.toFixed(3);
+});
+
+function goBack(){
+  window.location.href="index.html";
+}
+function clearLeaderboard(){
+  let confirmClear = confirm("Are you sure you want to clear the leaderboard?");
+  
+  if(confirmClear){
+    localStorage.removeItem("f1Scores");
+    location.reload(); // refresh page
+  }
+}
+
+</script>
+
+</body>
+</html>
