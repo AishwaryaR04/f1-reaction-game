@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>F1 Start Reaction</title>
+
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
 
 <style>
@@ -22,11 +23,12 @@ body {
   justify-content: center;
   align-items: center;
   flex-direction: column;
-}
-body.red-mode {
-  box-shadow: inset 0 0 60px red;
-  border: 6px solid red;
   transition: 0.3s ease;
+}
+
+body.red-mode {
+  box-shadow: inset 0 0 120px red;
+  border: 8px solid red;
 }
 
 .timer {
@@ -68,17 +70,51 @@ button {
   border: 1px solid #333;
   border-radius: 20px;
   cursor: pointer;
-  transition: 0.2s;
+  margin: 5px;
 }
 
 button:hover {
   background: #222;
 }
 
+/* Leaderboard Button Top Right */
+#leaderBtn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
 
+/* Username Modal */
+#nameModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.95);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 1000;
+}
+
+#nameModal input {
+  padding: 10px;
+  border-radius: 5px;
+  border: none;
+  margin-bottom: 15px;
+}
 </style>
 </head>
 <body>
+
+<!-- Leaderboard Button -->
+<button id="leaderBtn" onclick="goLeaderboard()">Leaderboard</button>
+
+<!-- Username Popup -->
+<div id="nameModal">
+  <h2 style="margin-bottom:20px;">Enter Your Name</h2>
+  <input id="playerName" type="text" placeholder="Your name">
+  <button onclick="startGame()">Start Game</button>
+</div>
 
 <div class="timer" id="timer">00.000</div>
 <div class="best">Best: <span id="best">--</span></div>
@@ -91,12 +127,9 @@ button:hover {
   <div class="light"></div>
 </div>
 
-<button onclick="manualReset()">RESET</button>
+<button onclick="manualReset()">RETRY</button>
 
 <script>
-  const beepSound = new Audio("beep.mp3");
-const goSound = new Audio("go.mp3");
-
 const lights = document.querySelectorAll(".light");
 const timerDisplay = document.getElementById("timer");
 const bestDisplay = document.getElementById("best");
@@ -105,60 +138,87 @@ let state = "idle";
 let startTime;
 let timerInterval;
 let countdownInterval;
+let goTimeout;
 let bestTime = null;
 let currentLight = 0;
+let username = "";
+
+let audioCtx;
+
+// Unlock audio on first interaction
+document.body.addEventListener("click", () => {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}, { once: true });
 
 document.body.addEventListener("click", function(e) {
-  if (e.target.tagName === "BUTTON") return; // prevent body click when pressing reset
+  if (e.target.tagName === "BUTTON" || e.target.id === "playerName") return;
+  if(document.getElementById("nameModal").style.display !== "none") return;
   handleClick();
 });
 
+function startGame() {
+  const input = document.getElementById("playerName").value.trim();
+  if(input === ""){
+    alert("Enter your name!");
+    return;
+  }
+  username = input;
+  document.getElementById("nameModal").style.display = "none";
+}
+
+function playBeep(lightIndex) {
+  const oscillator = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  oscillator.type = "sine";
+  oscillator.frequency.value = 600 + (lightIndex * 120);
+  gain.gain.value = 0.2;
+  oscillator.connect(gain);
+  gain.connect(audioCtx.destination);
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + 0.1);
+}
+
+function playGoSound() {
+  const oscillator = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  oscillator.type = "square";
+  oscillator.frequency.value = 1000;
+  gain.gain.value = 0.3;
+  oscillator.connect(gain);
+  gain.connect(audioCtx.destination);
+  oscillator.start();
+  oscillator.stop(audioCtx.currentTime + 0.2);
+}
+
 function handleClick() {
-
-  if (state === "idle") {
-    startSequence();
-  }
-
-  else if (state === "countdown") {
-    falseStart();
-  }
-
-  else if (state === "running") {
-    stopTimer();
-  }
+  if (state === "idle") startSequence();
+  else if (state === "countdown") falseStart();
+  else if (state === "running") stopTimer();
 }
 
 function startSequence() {
-  
   resetVisuals();
   state = "countdown";
   currentLight = 0;
-document.body.classList.add("red-mode");
+  document.body.classList.add("red-mode");
 
   countdownInterval = setInterval(() => {
     if (currentLight < lights.length) {
       lights[currentLight].classList.add("on");
-beepSound.currentTime = 0;
-beepSound.play().catch(() => {});
-
-
+      playBeep(currentLight);
       currentLight++;
     } else {
       clearInterval(countdownInterval);
-
       let randomDelay = Math.random() * 3000 + 2000;
 
-      setTimeout(() => {
-  lights.forEach(light => light.classList.remove("on"));
-  document.body.classList.remove("red-mode");
-
-  goSound.currentTime = 0;
-  goSound.play().catch(() => {});
-
-  startTimer();
-}, randomDelay);
-
-
+      goTimeout = setTimeout(() => {
+        lights.forEach(light => light.classList.remove("on"));
+        document.body.classList.remove("red-mode");
+        playGoSound();
+        startTimer();
+      }, randomDelay);
     }
   }, 900);
 }
@@ -168,8 +228,7 @@ function startTimer() {
   startTime = performance.now();
 
   timerInterval = setInterval(() => {
-    let now = performance.now();
-    let time = (now - startTime) / 1000;
+    let time = (performance.now() - startTime) / 1000;
     timerDisplay.textContent = time.toFixed(3);
   }, 10);
 }
@@ -177,30 +236,31 @@ function startTimer() {
 function stopTimer() {
   clearInterval(timerInterval);
   state = "idle";
-
   let finalTime = parseFloat(timerDisplay.textContent);
 
   if (!bestTime || finalTime < bestTime) {
     bestTime = finalTime;
     bestDisplay.textContent = bestTime.toFixed(3);
   }
+
+  saveScore(username, finalTime);
 }
 
 function falseStart() {
   clearInterval(countdownInterval);
+  clearTimeout(goTimeout);
   state = "idle";
   timerDisplay.textContent = "FALSE START";
-  resetLights();
   document.body.classList.remove("red-mode");
-
+  resetLights();
 }
 
 function manualReset() {
   clearInterval(timerInterval);
   clearInterval(countdownInterval);
+  clearTimeout(goTimeout);
   state = "idle";
   document.body.classList.remove("red-mode");
-
   resetVisuals();
 }
 
@@ -211,6 +271,34 @@ function resetLights() {
 function resetVisuals() {
   timerDisplay.textContent = "00.000";
   resetLights();
+}
+
+function saveScore(name, time) {
+  let scores = JSON.parse(localStorage.getItem("f1Scores")) || [];
+
+  // Check if user already exists
+  let existingUser = scores.find(score => score.name.toLowerCase() === name.toLowerCase());
+
+  if (existingUser) {
+    // Update only if new time is better
+    if (time < existingUser.time) {
+      existingUser.time = time;
+    }
+  } else {
+    // Add new user
+    scores.push({ name, time });
+  }
+
+  // Sort and keep top 10
+  scores.sort((a, b) => a.time - b.time);
+  scores = scores.slice(0, 10);
+
+  localStorage.setItem("f1Scores", JSON.stringify(scores));
+}
+
+
+function goLeaderboard(){
+  window.location.href = "leaderboard.html";
 }
 </script>
 
